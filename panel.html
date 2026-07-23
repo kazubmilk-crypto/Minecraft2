@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MinecraftBot Panel</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh}
+.header{background:linear-gradient(135deg,#16213e,#0f3460);padding:20px 30px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #e94560}
+.header h1{font-size:24px;color:#e94560}
+.header .stats{font-size:14px;color:#aaa}
+.add-form{display:flex;gap:10px;margin:20px 30px}
+.add-form input{flex:1;padding:12px 16px;border:2px solid #333;border-radius:8px;background:#16213e;color:#fff;font-size:14px;outline:none}
+.add-form input:focus{border-color:#e94560}
+.btn{padding:12px 24px;border:none;border-radius:8px;background:#e94560;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+.btn:hover{opacity:.85;transform:translateY(-1px)}
+.btn.green{background:#27ae60}
+.btn.blue{background:#2980b9}
+.btn.orange{background:#e67e22}
+.btn.red{background:#c0392b}
+.btn.small{padding:6px 14px;font-size:12px;border-radius:6px}
+.bots{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px;padding:0 30px 30px}
+.bot-card{background:#16213e;border-radius:12px;border:1px solid #333;overflow:hidden;transition:.2s}
+.bot-card:hover{border-color:#e94560}
+.bot-card.offline{opacity:.5}
+.bot-header{padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333}
+.bot-name{font-size:18px;font-weight:700;color:#e94560}
+.bot-status{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.dot.green{background:#27ae60;box-shadow:0 0 6px #27ae60}
+.dot.red{background:#c0392b}
+.bot-info{padding:12px 20px;font-size:13px;color:#aaa;line-height:1.8}
+.bot-info span{color:#fff;font-weight:500}
+.bot-console{border-top:1px solid #333;max-height:200px;overflow-y:auto;padding:10px 16px;font-family:'Fira Code',monospace;font-size:12px;background:#0d1117}
+.bot-console div{padding:2px 0;border-bottom:1px solid #1a1a2e}
+.bot-console .bot-msg{color:#27ae60}
+.bot-console .server-msg{color:#aaa}
+.bot-actions{padding:12px 20px;display:flex;gap:8px;flex-wrap:wrap}
+.cmd-input{display:flex;gap:8px;padding:0 20px 16px}
+.cmd-input input{flex:1;padding:10px 14px;border:1px solid #333;border-radius:6px;background:#0d1117;color:#fff;font-size:13px;font-family:monospace}
+.cmd-input input:focus{border-color:#e94560;outline:none}
+.cmd-input button{padding:10px 18px}
+.empty{text-align:center;padding:60px;color:#555;font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>MinecraftBot Panel</h1>
+  <div class="stats" id="globalStats">Ботов: 0</div>
+</div>
+
+<div class="add-form">
+  <input type="text" id="botNameInput" placeholder="Никнейм бота...">
+  <button class="btn" id="addBotBtn">+ Добавить бота</button>
+</div>
+
+<div class="add-form" style="background:#16213e;border-radius:10px;padding:16px 20px;border:1px solid #333;margin-top:10px">
+  <span style="line-height:44px;font-weight:700;color:#e94560;margin-right:10px">Массовое создание:</span>
+  <input type="number" id="batchCount" placeholder="Кол-во" value="5" min="1" max="50" style="max-width:90px">
+  <input type="number" id="batchDelay" placeholder="Кд (сек)" value="30" min="5" max="300" style="max-width:100px">
+  <button class="btn green" id="batchBtn">Создать ботов</button>
+  <span id="batchStatus" style="color:#aaa;line-height:44px;margin-left:10px;font-size:13px"></span>
+</div>
+
+<div class="add-form">
+  <button class="btn orange" id="rotationBtn">Ротация ВКЛ</button>
+  <span id="rotationTimer" style="color:#e94560;font-size:16px;font-weight:700;line-height:40px;margin-left:15px"></span>
+</div>
+
+<div class="bots" id="botsContainer">
+  <div class="empty" id="emptyMsg">Нет активных ботов. Добавьте никнейм выше.</div>
+</div>
+
+<script>
+var botsData = {}
+var rotationActive = false
+var rotationTimer = 0
+var batchRunning = false
+
+function api(path, body) {
+  var opts = body ? { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) } : {}
+  return fetch(path, opts).then(function(r) { return r.json() })
+}
+
+function addBot() {
+  var input = document.getElementById('botNameInput')
+  var name = input.value.trim()
+  if (!name) return
+  input.value = ''
+  api('/api/bot/add', { username: name }).then(function() { refresh() })
+}
+
+function startBatch() {
+  if (batchRunning) return
+  var count = parseInt(document.getElementById('batchCount').value) || 5
+  var delay = parseInt(document.getElementById('batchDelay').value) || 30
+  batchRunning = true
+  var btn = document.getElementById('batchBtn')
+  var status = document.getElementById('batchStatus')
+  btn.disabled = true
+  btn.textContent = 'Создание...'
+  status.textContent = 'Создаю ' + count + ' ботов с кд ' + delay + 'с...'
+  api('/api/bots/batch', { count: count, delay: delay }).then(function(r) {
+    if (r.ok) {
+      status.textContent = 'Запущено! Создаётся ' + r.created.length + ' ботов...'
+    } else {
+      status.textContent = 'Ошибка: ' + (r.error || 'unknown')
+    }
+    btn.disabled = false
+    btn.textContent = 'Создать ботов'
+    setTimeout(function() { status.textContent = ''; batchRunning = false }, 5000)
+    refresh()
+  }).catch(function() {
+    status.textContent = 'Ошибка сети'
+    btn.disabled = false
+    btn.textContent = 'Создать ботов'
+    batchRunning = false
+  })
+}
+
+function toggleRotation() {
+  rotationActive = !rotationActive
+  api('/api/rotation', { enable: rotationActive }).then(function() {
+    updateRotationBtn()
+  })
+}
+
+function updateRotationBtn() {
+  var btn = document.getElementById('rotationBtn')
+  var timerEl = document.getElementById('rotationTimer')
+  if (rotationActive) {
+    btn.textContent = 'Ротация ВЫКЛ'
+    btn.className = 'btn red'
+    timerEl.textContent = rotationTimer > 0 ? 'Следующий бот через: ' + rotationTimer + 'с' : 'Запуск...'
+  } else {
+    btn.textContent = 'Ротация ВКЛ'
+    btn.className = 'btn orange'
+    timerEl.textContent = ''
+  }
+}
+
+function removeBot(name) {
+  if (!confirm('Удалить бота ' + name + '?')) return
+  api('/api/bot/remove', { username: name }).then(function() { refresh() })
+}
+
+function sendCommand(username) {
+  var input = document.getElementById('cmd-' + username)
+  if (!input) return
+  var cmd = input.value.trim()
+  if (!cmd) return
+  input.value = ''
+  api('/api/bot/command', { username: username, command: cmd }).then(function() {
+    setTimeout(refresh, 500)
+  })
+}
+
+function joinServer(username, server) {
+  api('/api/bot/join', { username: username, server: server }).then(function() {
+    setTimeout(refresh, 1000)
+  })
+}
+
+function toggleBehavior(username, action, enable) {
+  api('/api/bot/behavior', { username: username, action: action, enable: enable }).then(function() {
+    setTimeout(refresh, 500)
+  })
+}
+
+function startBot(username) {
+  api('/api/bot/start', { username: username }).then(function() {
+    setTimeout(refresh, 1000)
+  })
+}
+
+function stopBot(username) {
+  api('/api/bot/stop', { username: username }).then(function() {
+    setTimeout(refresh, 500)
+  })
+}
+
+function escHtml(s) {
+  if (s === null || s === undefined) return ''
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function renderBots(data) {
+  botsData = data
+  var container = document.getElementById('botsContainer')
+  var names = Object.keys(data)
+  var aliveCount = 0
+  for (var i = 0; i < names.length; i++) {
+    if (data[names[i]].alive) aliveCount++
+  }
+  document.getElementById('globalStats').textContent = 'Ботов: ' + names.length + ' | Онлайн: ' + aliveCount
+
+  if (names.length === 0) {
+    container.innerHTML = '<div class="empty">Нет активных ботов. Добавьте никнейм выше.</div>'
+    return
+  }
+
+  var html = ''
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i]
+    var b = data[name]
+    var pos = b.position ? (b.position.x + ', ' + b.position.y + ', ' + b.position.z) : '?'
+    var statusClass = b.alive ? '' : ' offline'
+    var dotClass = b.alive ? 'green' : 'red'
+    var statusText = b.alive ? 'На сервере: ' + b.server : 'Оффлайн'
+    var walkOn = b.behaviors && b.behaviors.randomWalk
+    var chatOn = b.behaviors && b.behaviors.chatReply
+    var aiOn = b.behaviors && b.behaviors.aiChat
+    var aiAllOn = b.behaviors && b.behaviors.aiChatAll
+    var execOn = b.behaviors && b.behaviors.execCommands
+    var pvpOn = b.behaviors && b.behaviors.pvp
+    var devOn = b.behaviors && b.behaviors.developing
+
+    html += '<div class="bot-card' + statusClass + '">'
+    html += '<div class="bot-header">'
+    html += '<div class="bot-name">' + escHtml(b.username) + '</div>'
+    html += '<div class="bot-status"><span class="dot ' + dotClass + '"></span>' + statusText + '</div>'
+    html += '</div>'
+    html += '<div class="bot-info">'
+    html += 'Позиция: <span>' + pos + '</span><br>'
+    html += 'Регистрация: <span>' + (b.registered ? 'Да' : 'Нет') + '</span> | '
+    html += 'Сообщений: <span>' + b.stats.messagesSent + '</span> | '
+    html += 'Ребутов: <span>' + b.stats.rejoins + '</span>'
+    html += '</div>'
+
+    html += '<div class="bot-actions">'
+    if (b.alive) {
+      html += '<button class="btn small red" data-action="stop" data-user="' + escHtml(name) + '">Стоп</button>'
+    } else {
+      html += '<button class="btn small green" data-action="start" data-user="' + escHtml(name) + '">Старт</button>'
+    }
+    html += '<button class="btn small blue" data-action="join" data-user="' + escHtml(name) + '" data-server="grief-1">Grief-1</button>'
+    html += '<button class="btn small blue" data-action="join" data-user="' + escHtml(name) + '" data-server="lobby">Лобби</button>'
+    html += '<button class="btn small red" data-action="remove" data-user="' + escHtml(name) + '">Удалить</button>'
+    html += '</div>'
+
+    if (b.alive) {
+      html += '<div class="bot-actions">'
+      html += '<button class="btn small ' + (walkOn ? 'orange' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="walk" data-enable="' + (!walkOn) + '">' + (walkOn ? 'Ходьба ВКЛ' : 'Ходьба ВЫКЛ') + '</button>'
+      html += '<button class="btn small ' + (chatOn ? 'orange' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="chat" data-enable="' + (!chatOn) + '">' + (chatOn ? 'Чат ВКЛ' : 'Чат ВЫКЛ') + '</button>'
+      html += '<button class="btn small ' + (aiOn ? 'orange' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="ai" data-enable="' + (!aiOn) + '">' + (aiOn ? 'AI ВКЛ' : 'AI ВЫКЛ') + '</button>'
+      html += '<button class="btn small ' + (aiAllOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="aiAll" data-enable="' + (!aiAllOn) + '">' + (aiAllOn ? 'AI Все ВКЛ' : 'AI Все ВЫКЛ') + '</button>'
+      html += '<button class="btn small ' + (execOn ? 'orange' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="exec" data-enable="' + (!execOn) + '">' + (execOn ? 'Команды ВКЛ' : 'Команды ВЫКЛ') + '</button>'
+      html += '<button class="btn small ' + (pvpOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="pvp" data-enable="' + (!pvpOn) + '">' + (pvpOn ? 'PvP ВКЛ' : 'PvP ВЫКЛ') + '</button>'
+      html += '<button class="btn small ' + (devOn ? 'red' : 'blue') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="develop" data-enable="' + (!devOn) + '">' + (devOn ? 'Развитие ВКЛ (' + (b.developPhase || '') + ')' : 'Начать развитие') + '</button>'
+      html += '</div>'
+    }
+
+    html += '<div class="cmd-input">'
+    html += '<input type="text" id="cmd-' + escHtml(name) + '" placeholder="Команда или сообщение...">'
+    html += '<button class="btn small orange" data-action="sendcmd" data-user="' + escHtml(name) + '">Отправить</button>'
+    html += '</div>'
+
+    html += '<div class="bot-console">'
+    var msgs = b.recentMessages || []
+    if (msgs.length > 0) {
+      for (var j = 0; j < msgs.length; j++) {
+        var m = msgs[j]
+        var cls = m.text.indexOf('[BOT') >= 0 ? 'bot-msg' : 'server-msg'
+        html += '<div class="' + cls + '">' + escHtml(m.text.substring(0, 120)) + '</div>'
+      }
+    } else {
+      html += '<div style="color:#555">Нет сообщений</div>'
+    }
+    html += '</div>'
+
+    if (b.developLog && b.developLog.length > 0) {
+      html += '<div class="bot-console" style="border-top:1px solid #e94560">'
+      html += '<div style="color:#e94560;font-weight:700;padding:4px 0">Развитие:</div>'
+      for (var j = 0; j < b.developLog.length; j++) {
+        html += '<div style="color:#f39c12">' + escHtml(b.developLog[j]) + '</div>'
+      }
+      html += '</div>'
+    }
+
+    html += '</div>'
+  }
+
+  container.innerHTML = html
+}
+
+function refresh() {
+  api('/api/bots').then(function(data) {
+    renderBots(data)
+    return api('/api/rotation/status')
+  }).then(function(rot) {
+    rotationActive = rot.active
+    rotationTimer = rot.nextSpawn
+    updateRotationBtn()
+  }).catch(function(e) {
+    console.error('Refresh error:', e)
+  })
+}
+
+document.addEventListener('click', function(e) {
+  var btn = e.target
+  while (btn && btn.tagName !== 'BUTTON') btn = btn.parentElement
+  if (!btn) return
+
+  var action = btn.getAttribute('data-action')
+  var user = btn.getAttribute('data-user')
+  if (!action) return
+
+  if (action === 'start') startBot(user)
+  else if (action === 'stop') stopBot(user)
+  else if (action === 'remove') removeBot(user)
+  else if (action === 'join') joinServer(user, btn.getAttribute('data-server'))
+  else if (action === 'behavior') toggleBehavior(user, btn.getAttribute('data-behavior'), btn.getAttribute('data-enable') === 'true')
+  else if (action === 'sendcmd') sendCommand(user)
+})
+
+document.getElementById('addBotBtn').addEventListener('click', addBot)
+document.getElementById('batchBtn').addEventListener('click', startBatch)
+document.getElementById('rotationBtn').addEventListener('click', toggleRotation)
+document.getElementById('botNameInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') addBot() })
+
+refresh()
+setInterval(refresh, 3000)
+setInterval(function() {
+  if (rotationActive && rotationTimer > 0) {
+    rotationTimer--
+    updateRotationBtn()
+  }
+}, 1000)
+</script>
+</body>
+</html>
