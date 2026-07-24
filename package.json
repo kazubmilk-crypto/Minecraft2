@@ -2,9 +2,9 @@
   "name": "mc-bot-manager",
   "version": "1.0.0",
   "description": "Minecraft Bot Manager",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "mineflayer": "^4.20.1",
