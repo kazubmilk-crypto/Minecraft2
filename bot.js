@@ -60,6 +60,291 @@ function askAI(message) {
   })
 }
 
+const AI_AGENT_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'move_to',
+      description: 'Идти к указанным координатам. Используй чтобы исследовать мир, добраться до ресурсов или убежать от опасности.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'number', description: 'Координата X' },
+          y: { type: 'number', description: 'Координата Y (высота)' },
+          z: { type: 'number', description: 'Координата Z' },
+        },
+        required: ['x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'mine_block',
+      description: 'Сломать блок рядом с ботом. Сначала подойди к блоку, потом ломай.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'number', description: 'Координата X блока' },
+          y: { type: 'number', description: 'Координата Y блока' },
+          z: { type: 'number', description: 'Координата Z блока' },
+        },
+        required: ['x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'place_block',
+      description: 'Поставить блок на указанные координаты.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'number' },
+          y: { type: 'number' },
+          z: { type: 'number' },
+          block: { type: 'string', description: 'Название блока ( cobblestone, oak_planks, dirt...)' },
+        },
+        required: ['x', 'y', 'z', 'block'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'attack',
+      description: 'Атаковать ближайшего вражеского моба или игрока.',
+      parameters: {
+        type: 'object',
+        properties: {
+          target: { type: 'string', description: 'Имя моба или игрока (zombie, skeleton, spider...)' },
+        },
+        required: ['target'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'chat',
+      description: 'Написать сообщение в чат сервера.',
+      parameters: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', description: 'Текст сообщения' },
+        },
+        required: ['message'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'equip',
+      description: 'Экипировать предмет из инвентаря.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item: { type: 'string', description: 'Название предмета ( diamond_sword, iron_pickaxe...)' },
+          slot: { type: 'string', enum: ['hand', 'off-hand', 'head', 'chest', 'legs', 'feet'], description: 'Слот экипировки' },
+        },
+        required: ['item', 'slot'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'eat',
+      description: 'Поесть из инвентаря.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'craft',
+      description: 'Скрафтить предмет через серверную команду /craft.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item: { type: 'string', description: 'Название предмета для крафта (iron_ingot, diamond_sword...)' },
+        },
+        required: ['item'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'use_command',
+      description: 'Выполнить серверную команду.',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Команда без слэша (rtpfar, kit dragon, spawn...)' },
+        },
+        required: ['command'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'jump',
+      description: 'Прыгнуть на месте.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'wait',
+      description: 'Подождать указанное время (в секундах) перед следующим действием.',
+      parameters: {
+        type: 'object',
+        properties: {
+          seconds: { type: 'number', description: 'Количество секунд ожидания' },
+        },
+        required: ['seconds'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'think',
+      description: 'Сделать паузу для обдумывания следующего действия. Используй когда нужно решить что делать дальше.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'build_house',
+      description: 'Построить простой дом 5x5 из бруса/досок с дверью, крышей и сундуками внутри. Бот автоматически подбирает материалы из инвентаря.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'smelt',
+      description: 'Расплавить руду или приготовить еду в печи. Сначала ставит печь, потом запускает плавку.',
+      parameters: {
+        type: 'object',
+        properties: {
+          input: { type: 'string', description: 'Что плавить (iron_ore, raw_beef, raw_porkchop, raw_chicken, raw_mutton, sand, cobblestone)' },
+          fuel: { type: 'string', description: 'Топливо (coal, charcoal, oak_planks, cobblestone). Если не указано, берёт автоматически.' },
+        },
+        required: ['input'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'chop_tree',
+      description: 'Найти и срубить дерево целиком (все брёвна). Автоматически подбирает лучшую секиру.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'place_chest',
+      description: 'Поставить сундук рядом с ботом.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'kill_animal',
+      description: 'Найти и убить животное для еды (корову, овцу, свинью, курицу). Автоматически берёт меч.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+]
+
+function askAIWithTools(messages, tools) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      model: AI_MODEL,
+      messages: messages,
+      tools: tools,
+      tool_choice: 'auto',
+      max_tokens: 300,
+      temperature: 0.3,
+    })
+    const req = https.request({
+      hostname: 'api.groq.com',
+      path: '/openai/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AI_API_KEY}`,
+      },
+    }, (res) => {
+      let data = ''
+      res.on('data', c => data += c)
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data)
+          if (json.error) {
+            console.log(`[AI Agent] Ошибка: ${json.error.message}`)
+            resolve(null)
+          } else {
+            resolve(json.choices?.[0]?.message || null)
+          }
+        } catch(e) {
+          console.log(`[AI Agent] Парсинг: ${data.substring(0, 200)}`)
+          resolve(null)
+        }
+      })
+    })
+    req.on('error', (e) => {
+      console.log(`[AI Agent] Сеть: ${e.message}`)
+      resolve(null)
+    })
+    req.setTimeout(15000, () => { req.destroy(); resolve(null) })
+    req.write(body)
+    req.end()
+  })
+}
+
+const AGENT_SYSTEM_PROMPT = `Ты — ИИ-агент в Minecraft (Java 1.16.5). Ты управляешь персонажем. ДЕЙСТВУЙ БЫСТРО И РЕШИТЕЛЬНО.
+
+СОСТОЯНИЕ БОТА:
+- HP: 20 макс. Если < 14 — ешь. Если < 8 — беги и ешь.
+- Голод: 20 макс. Если < 14 — ешь.
+- Ночь (tick > 12500) — прячься в доме или стой у света.
+
+ПЛАН ДЕЙСТВИЙ (выполняй ПОСЛЕДОВАТЕЛЬНО):
+1. chop_tree → chop_tree → chop_tree (3 дерева)
+2. mine_block stone × 16
+3. build_house (нужно 40+ дерева)
+4. kill_animal → smelt raw_beef (ГОТОВЬ ЕДУ!)
+5. mine_block iron_ore × 8 → smelt iron_ore
+6. explore — move_to в случайном направлении 50 блоков
+7. Повторяй цикл
+
+БЫСТРЫЕ ДЕЙСТВИЯ (делай за один вызов):
+- Если нет дерева: chop_tree
+- Если есть дерево и нет дома: build_house
+- Если есть дом: kill_animal + smelt для еды
+- Если есть еда и оружие: attack ближайшего моба
+- Если HP > 14 и еда есть: move_to +80 блоков в случайном направлении
+
+ПРАВИЛА:
+- ДЕЙСТВУЙ СРАЗУ, не думай долго
+- КАЖДЫЕ 2 действия проверяй HP
+- Если HP < 10 — СРАЗУ ешь (eat)
+- НИКОГДА не стой на месте больше 3 секунд
+- Всегда имей оружие в руке
+- Пиши КРАТКО. 1 слово или фраза.`
+
 class Bot {
   constructor(username, config) {
     this.username = username
@@ -83,9 +368,12 @@ class Bot {
       execCommands: false,
       pvp: false,
       developing: false,
+      agent: false,
     }
     this.developPhase = null
     this.aiCooldown = false
+    this.agentMessages = []
+    this.agentLog = []
     this.stats = {
       messagesSent: 0,
       distanceMoved: 0,
@@ -96,9 +384,11 @@ class Bot {
   }
 
   create() {
+    const prevCaptchaPassed = this.captchaPassed
+    const prevServerSwitching = this.serverSwitching
     this.registered = false
     this.loggedIn = false
-    this.captchaPassed = false
+    if (!prevServerSwitching) this.captchaPassed = false
     this.captchaCode = null
     this.inGame = false
     this.server = 'lobby'
@@ -132,37 +422,34 @@ class Bot {
     })
 
     this.bot.on('windowOpen', (window) => {
-      if (this.captchaPassed) return
       const title = window.title || ''
-      console.log(`[${this.username}] GUI открыто: ${title}`)
-      if (title.toLowerCase().includes('бот') || title.toLowerCase().includes('captcha') || title.toLowerCase().includes('капча') || title.toLowerCase().includes('против')) {
-        const slots = window.slots
-        for (let i = 0; i < slots.length; i++) {
-          const item = slots[i]
-          if (!item) continue
-          const name = item.name || ''
-          if (name.includes('lime') || name.includes('green') || name.includes('green_terracotta')) {
-            console.log(`[${this.username}] Нашёл зелёную плашку в слоте ${i}, кликаю!`)
-            setTimeout(() => {
-              if (this.bot) this.bot.clickWindow(i, 0, 0)
-            }, 300)
+      console.log(`[${this.username}] GUI открыто: "${title}" slots=${window.slots?.length}`)
+
+      if (this.captchaPassed) {
+        console.log(`[${this.username}] Капча уже пройдена, закрываю окно`)
+        try { this.bot.closeWindow(window) } catch(e) {}
+        return
+      }
+
+      const titleLow = title.toLowerCase()
+      if (titleLow.includes('капча') || titleLow.includes('captcha') || titleLow.includes('проверк')) {
+        console.log(`[${this.username}] LobbyCaptcha: обнаружена капча!`)
+
+        const trySolve = (attempt) => {
+          if (this.captchaPassed) return
+          const slots = window.slots
+          if (!slots || slots.length === 0) {
+            if (attempt < 10) {
+              console.log(`[${this.username}] Слоты пусты, попытка ${attempt + 1}/10...`)
+              setTimeout(() => trySolve(attempt + 1), 500)
+            }
             return
           }
+          this.solveCaptcha(window)
         }
-        console.log(`[${this.username}] Зелёная плашка не найдена, пробую все слоты...`)
-        for (let i = 0; i < slots.length; i++) {
-          const item = slots[i]
-          if (!item) continue
-          const name = item.name || ''
-          const display = item.stack?.nbt?.tag?.display?.Name || ''
-          if (name.includes('stained_glass_pane') && !name.includes('red') && !name.includes('white')) {
-            console.log(`[${this.username}] Нашёл не-красную плашку: ${name} в слоте ${i}`)
-            setTimeout(() => {
-              if (this.bot) this.bot.clickWindow(i, 0, 0)
-            }, 300)
-            return
-          }
-        }
+
+        setTimeout(() => trySolve(0), 1500)
+        return
       }
     })
 
@@ -225,17 +512,19 @@ class Bot {
       if (msg.includes('Успешная регистрация') || msg.includes('Успешный вход') || msg.includes('Добро пожаловать') || msg.includes('Добро пожаловать на сервер')) {
         this.alive = true
         this.reconnectAttempts = 0
-        console.log(`[${this.username}] В лобби, переходу на grief-1...`)
-        if (this.server !== 'grief-1' && this.captchaPassed) {
+        console.log(`[${this.username}] В лобби`)
+        if (this.captchaPassed && this.serverSwitching && this.server !== 'grief-1') {
+          console.log(`[${this.username}] Реконнект после server switch → повторю /server grief-1`)
+          this.serverSwitching = false
           setTimeout(() => this.joinGrief(), 2000)
         }
       }
 
-      if (msg.includes('Вы прошли проверку') || msg.includes('Удачной игры') || msg.includes('проверку') || msg.includes('PROVED') || msg.includes('Captcha passed') || msg.includes('Welcome!') || msg.includes('допущен') || msg.includes('Допущен') || msg.includes('пропущен') || msg.includes('капча пройдена')) {
+      if (msg.includes('Вы прошли проверку') || msg.includes('Удачной игры') || msg.includes('проверку') || msg.includes('проверка') || msg.includes('Проверка') || msg.includes('PROVED') || msg.includes('Captcha passed') || msg.includes('Welcome!') || msg.includes('допущен') || msg.includes('Допущен') || msg.includes('пропущен') || msg.includes('капча пройдена')) {
         if (!this.captchaPassed) {
           this.captchaPassed = true
           console.log(`[${this.username}] Капча пройдена! Перехожу на grief-1...`)
-          setTimeout(() => this.bot.chat('/server grief-1'), 1000)
+          setTimeout(() => this.joinGrief(), 2000)
         }
       }
 
@@ -248,8 +537,14 @@ class Bot {
         }, 500)
       }
 
-      if (msg.includes('grief') || msg.includes('Grief') || msg.includes('Вы на сервере') || msg.includes('Вы перенесены')) {
+      if (msg.includes('grief') || msg.includes('Grief') || msg.includes('Вы на сервере') || msg.includes('Вы перенесены') || msg.includes('[Ваша статистика]') || msg.includes('Удачной игры')) {
         this.alive = true
+        if (this.serverSwitching) {
+          this.server = 'grief-1'
+          this.serverSwitching = false
+          this.switchAttempts = 0
+          console.log(`[${this.username}] Успешно перешёл на grief-1!`)
+        }
         console.log(`[${this.username}] Сообщение сервера: ${msg.substring(0, 100)}`)
       }
 
@@ -382,6 +677,14 @@ class Bot {
     this.bot.on('kicked', (reason) => {
       console.log(`[${this.username}] Кикнут: ${reason}`)
       this.stopBehavior()
+      if (this.serverSwitching) {
+        console.log(`[${this.username}] Кикнут при переключении сервера → реконнект через 3с`)
+        this.alive = false
+        this.loggedIn = false
+        this.inGame = false
+        setTimeout(() => this.create(), 3000)
+        return
+      }
       this.alive = false
       this.registered = false
       this.loggedIn = false
@@ -401,6 +704,14 @@ class Bot {
     this.bot.on('end', (reason) => {
       console.log(`[${this.username}] Отключился: ${reason}`)
       this.stopBehavior()
+      if (this.serverSwitching) {
+        console.log(`[${this.username}] Отключение при переключении сервера → реконнект через 3с`)
+        this.alive = false
+        this.loggedIn = false
+        this.inGame = false
+        setTimeout(() => this.create(), 3000)
+        return
+      }
       this.alive = false
       this.registered = false
       this.loggedIn = false
@@ -414,13 +725,106 @@ class Bot {
     })
   }
 
+  solveCaptcha(window) {
+    if (!this.bot || this.captchaPassed) return
+    const slots = window.slots
+    const papers = []
+    console.log(`[${this.username}] LobbyCaptcha: проверяю ${slots.length} слотов...`)
+    for (let i = 0; i < slots.length; i++) {
+      const item = slots[i]
+      if (!item || !item.name) continue
+      const name = item.name
+      if (!name.includes('paper') && !name.includes('map')) continue
+
+      let digit = -1
+
+      const nameStr = item.nbt?.value?.display?.value?.Name?.value || ''
+      if (typeof nameStr === 'string' && nameStr.length > 0) {
+        console.log(`[${this.username}] Paper ${i}: Name = ${nameStr.substring(0, 200)}`)
+        const m1 = nameStr.match(/"text"\s*:\s*"(\d)"/)
+        if (m1) digit = parseInt(m1[1])
+        if (digit === -1) {
+          const m2 = nameStr.match(/§[0-9a-fk-or]§l(\d)/)
+          if (m2) digit = parseInt(m2[1])
+        }
+        if (digit === -1) {
+          const m3 = nameStr.match(/>(\d)</)
+          if (m3) digit = parseInt(m3[1])
+        }
+        if (digit === -1) {
+          const m4 = nameStr.match(/(\d)/)
+          if (m4) digit = parseInt(m4[1])
+        }
+      }
+
+      if (digit >= 0 && digit <= 9) {
+        papers.push({ slot: i, digit })
+        console.log(`[${this.username}] Бумага слот ${i} = ${digit}`)
+      }
+    }
+
+    if (papers.length > 0) {
+      papers.sort((a, b) => a.digit - b.digit)
+      console.log(`[${this.username}] LobbyCaptcha: кликаю по порядку: ${papers.map(p => p.digit).join(' → ')}`)
+      papers.forEach((p, idx) => {
+        setTimeout(() => {
+          if (this.bot && !this.captchaPassed) {
+            this.bot.clickWindow(p.slot, 0, 0).catch(() => {})
+            console.log(`[${this.username}] Клик: слот ${p.slot} (цифра ${p.digit})`)
+          }
+        }, 500 + idx * 600)
+      })
+      const totalClickTime = 500 + (papers.length - 1) * 600 + 1500
+      setTimeout(() => {
+        if (!this.captchaPassed && this.alive) {
+          this.captchaPassed = true
+          console.log(`[${this.username}] Капча решена (4 клика отправлены)! Перехожу на grief-1...`)
+          this.joinGrief()
+        }
+      }, totalClickTime)
+    } else {
+      const allPapers = []
+      for (let i = 0; i < slots.length; i++) {
+        const item = slots[i]
+        if (item && item.name && (item.name.includes('paper') || item.name.includes('map'))) {
+          allPapers.push(i)
+        }
+      }
+      if (allPapers.length > 0) {
+        console.log(`[${this.username}] LobbyCaptcha: не могу прочитать цифры, кликаю все бумаги (${allPapers.length} шт) по порядку слотов: ${allPapers}`)
+        allPapers.forEach((slot, idx) => {
+          setTimeout(() => {
+            if (this.bot && !this.captchaPassed) {
+              this.bot.clickWindow(slot, 0, 0).catch(() => {})
+              console.log(`[${this.username}] Fallback клик: слот ${slot}`)
+            }
+          }, 500 + idx * 600)
+        })
+      } else {
+        console.log(`[${this.username}] LobbyCaptcha: бумага не найдена! Все слоты:`)
+        for (let i = 0; i < slots.length; i++) {
+          const item = slots[i]
+          if (item) console.log(`  [${i}] name=${item.name}`)
+        }
+      }
+    }
+  }
+
   joinGrief() {
     if (!this.bot || !this.alive) return
     if (this.server === 'grief-1') return
-    console.log(`[${this.username}] Перехожу на grief-1...`)
+    if (this.serverSwitching) return
+    this.switchAttempts = (this.switchAttempts || 0) + 1
+    if (this.switchAttempts > 5) {
+      console.log(`[${this.username}] Слишком много попыток переключения (${this.switchAttempts}), остаюсь на lobby`)
+      this.serverSwitching = false
+      return
+    }
+    console.log(`[${this.username}] Перехожу на grief-1... (попытка ${this.switchAttempts})`)
     this.stopBehavior()
+    this.serverSwitching = true
     this.bot.chat('/server grief-1')
-    this.server = 'grief-1'
+    setTimeout(() => { this.serverSwitching = false }, 20000)
   }
 
   chat(message) {
@@ -474,6 +878,7 @@ class Bot {
     this.behaviors.randomWalk = false
     this.behaviors.chatReply = false
     this.behaviors.developing = false
+    this.behaviors.agent = false
     this.developPhase = null
     if (this.bot) {
       try { this.bot.pathfinder.setGoal(null) } catch(e) {}
@@ -1542,6 +1947,538 @@ class Bot {
     }
   }
 
+  getGameState() {
+    if (!this.bot || !this.alive) return null
+    const pos = this.bot.entity.position
+    const health = Math.round(this.bot.health)
+    const food = Math.round(this.bot.food)
+    const time = this.bot.time.timeOfDay
+    const isNight = time > 12500 && time < 23000
+
+    const inventory = {}
+    this.bot.inventory.items().forEach(item => {
+      inventory[item.name] = (inventory[item.name] || 0) + item.count
+    })
+
+    const nearbyBlocks = []
+    const radius = 6
+    for (let x = -radius; x <= radius; x++) {
+      for (let y = -3; y <= 3; y++) {
+        for (let z = -radius; z <= radius; z++) {
+          const bp = new Vec3(Math.floor(pos.x) + x, Math.floor(pos.y) + y, Math.floor(pos.z) + z)
+          const block = this.bot.blockAt(bp)
+          if (block && block.name !== 'air' && block.name !== 'cave_air' && block.name !== 'void_air') {
+            if (nearbyBlocks.length < 30) {
+              nearbyBlocks.push({ name: block.name, x: bp.x, y: bp.y, z: bp.z })
+            }
+          }
+        }
+      }
+    }
+
+    const nearbyEntities = []
+    const hostileNames = ['zombie','skeleton','spider','creeper','witch','phantom','cave_spider','drowned','husk','stray','blaze','wither_skeleton','enderman']
+    for (const [, entity] of Object.entries(this.bot.entities)) {
+      if (!entity || !entity.position || entity === this.bot.entity) continue
+      const dist = entity.position.distanceTo(pos)
+      if (dist > 16) continue
+      const name = entity.name || entity.username || 'unknown'
+      const isHostile = hostileNames.some(h => name.toLowerCase().includes(h))
+      const isPlayer = !!entity.username
+      if (nearbyEntities.length < 15) {
+        nearbyEntities.push({
+          name: name,
+          type: isPlayer ? 'player' : (isHostile ? 'hostile' : 'passive'),
+          distance: Math.round(dist),
+          x: Math.round(entity.position.x),
+          y: Math.round(entity.position.y),
+          z: Math.round(entity.position.z),
+        })
+      }
+    }
+
+    const equipped = this.bot.heldItem ? this.bot.heldItem.name : 'none'
+    const armor = {
+      head: this.bot.inventory.slots[5]?.name || 'none',
+      chest: this.bot.inventory.slots[6]?.name || 'none',
+      legs: this.bot.inventory.slots[7]?.name || 'none',
+      feet: this.bot.inventory.slots[8]?.name || 'none',
+    }
+
+    return {
+      position: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
+      health, food, isNight, time,
+      inventory, equipped, armor,
+      nearbyBlocks, nearbyEntities,
+      server: this.server,
+    }
+  }
+
+  async executeAgentTool(name, args) {
+    if (!this.bot || !this.alive) return 'Бот не активен'
+    const wait = (ms) => new Promise(r => setTimeout(r, ms))
+
+    try {
+      switch (name) {
+        case 'move_to': {
+          const { goals } = require('mineflayer-pathfinder')
+          try {
+            await this.bot.pathfinder.goto(new goals.GoalNear(args.x, args.y, args.z, 2))
+            return `Дошёл до ${args.x} ${args.y} ${args.z}`
+          } catch(e) {
+            return `Не могу дойти: ${e.message}`
+          }
+        }
+        case 'mine_block': {
+          const target = new Vec3(args.x, args.y, args.z)
+          const block = this.bot.blockAt(target)
+          if (!block || block.name === 'air') return 'Блок не найден или уже сломан'
+          const dist = this.bot.entity.position.distanceTo(target)
+          if (dist > 5) {
+            const { goals } = require('mineflayer-pathfinder')
+            try { await this.bot.pathfinder.goto(new goals.GoalNear(args.x, args.y, args.z, 2)) } catch(e) {}
+            await wait(300)
+          }
+          const blockNow = this.bot.blockAt(target)
+          if (!blockNow || blockNow.name === 'air') return 'Блок исчез'
+          const BLOCK_TOOL = { oak_log:'axe',spruce_log:'axe',birch_log:'axe',jungle_log:'axe',dark_oak_log:'axe',acacia_log:'axe',stone:'pickaxe',andesite:'pickaxe',diorite:'pickaxe',granite:'pickaxe',iron_ore:'pickaxe',gold_ore:'pickaxe',diamond_ore:'pickaxe',coal_ore:'pickaxe',lapis_ore:'pickaxe',redstone_ore:'pickaxe',emerald_ore:'pickaxe',obsidian:'pickaxe',deepslate:'pickaxe',cobblestone:'pickaxe',dirt:'shovel',grass_block:'shovel',gravel:'shovel',sand:'shovel' }
+          const TOOLS = { axe:['netherite_axe','diamond_axe','iron_axe','stone_axe','wooden_axe'], pickaxe:['netherite_pickaxe','diamond_pickaxe','iron_pickaxe','stone_pickaxe','wooden_pickaxe'], shovel:['netherite_shovel','diamond_shovel','iron_shovel','stone_shovel','wooden_shovel'], sword:['netherite_sword','diamond_sword','iron_sword','stone_sword','wooden_sword'] }
+          const toolType = BLOCK_TOOL[blockNow.name] || 'pickaxe'
+          const tools = this.bot.inventory.items().filter(i => TOOLS[toolType] && TOOLS[toolType].includes(i.name))
+          if (tools.length) {
+            const best = tools[0]
+            if (!this.bot.heldItem || this.bot.heldItem.name !== best.name) {
+              try { await this.bot.equip(best, 'hand') } catch(e) {}
+            }
+          }
+          await this.bot.dig(blockNow)
+          await wait(300)
+          return `Сломал ${blockNow.name} в ${args.x} ${args.y} ${args.z}`
+        }
+        case 'place_block': {
+          const target = new Vec3(args.x, args.y, args.z)
+          const checks = [
+            { p: new Vec3(args.x, args.y - 1, args.z), f: new Vec3(0, 1, 0) },
+            { p: new Vec3(args.x + 1, args.y, args.z), f: new Vec3(-1, 0, 0) },
+            { p: new Vec3(args.x - 1, args.y, args.z), f: new Vec3(1, 0, 0) },
+            { p: new Vec3(args.x, args.y, args.z + 1), f: new Vec3(0, 0, -1) },
+            { p: new Vec3(args.x, args.y, args.z - 1), f: new Vec3(0, 0, 1) },
+          ]
+          let ref = null, face = null
+          for (const c of checks) {
+            const b = this.bot.blockAt(c.p)
+            if (b && b.name !== 'air' && b.name !== 'cave_air') { ref = b; face = c.f; break }
+          }
+          if (!ref) return 'Нет опоры для размещения'
+          const item = this.bot.inventory.items().find(i => i.name === args.block)
+          if (!item) return `Нет ${args.block} в инвентаре`
+          await this.bot.equip(item, 'hand')
+          await this.bot.placeBlock(ref, face)
+          await wait(200)
+          return `Поставил ${args.block} в ${args.x} ${args.y} ${args.z}`
+        }
+        case 'attack': {
+          const target = Object.values(this.bot.entities).find(e =>
+            e && e.position && e.name && e.name.toLowerCase().includes(args.target.toLowerCase()) &&
+            e.position.distanceTo(this.bot.entity.position) < 10
+          )
+          if (!target) return `${args.target} не найден рядом`
+          const sword = this.bot.inventory.items().find(i => i.name.includes('sword'))
+          if (sword && (!this.bot.heldItem || !this.bot.heldItem.name.includes('sword'))) {
+            try { await this.bot.equip(sword, 'hand') } catch(e) {}
+          }
+          for (let i = 0; i < 8; i++) {
+            if (!target || !target.position) break
+            this.bot.attack(target)
+            if (i % 2 === 0) {
+              this.bot.setControlState('jump', true)
+              await wait(200)
+              this.bot.setControlState('jump', false)
+            }
+            await wait(300)
+          }
+          return `Атаковал ${args.target}`
+        }
+        case 'chat': {
+          this.bot.chat(args.message)
+          this.stats.messagesSent++
+          return `Написал: ${args.message}`
+        }
+        case 'equip': {
+          const item = this.bot.inventory.items().find(i => i.name === args.item)
+          if (!item) return `${args.item} не найден`
+          await this.bot.equip(item, args.slot)
+          return `Экипировал ${args.item} в ${args.slot}`
+        }
+        case 'eat': {
+          const foods = ['golden_apple','enchanted_golden_apple','cooked_beef','cooked_porkchop','cooked_mutton','cooked_chicken','bread','baked_potato','golden_carrot','apple','carrot']
+          const food = this.bot.inventory.items().find(i => foods.includes(i.name))
+          if (!food) return 'Нет еды в инвентаре'
+          await this.bot.equip(food, 'hand')
+          this.bot.activateItem()
+          await this.bot.consume()
+          await wait(500)
+          return `Съел ${food.name}`
+        }
+        case 'craft': {
+          this.bot.chat(`/craft ${args.item}`)
+          await wait(2000)
+          return `Скрафтил ${args.item}`
+        }
+        case 'use_command': {
+          this.bot.chat(`/${args.command}`)
+          await wait(1000)
+          return `Выполнил /${args.command}`
+        }
+        case 'jump': {
+          this.bot.setControlState('jump', true)
+          await wait(300)
+          this.bot.setControlState('jump', false)
+          return 'Прыгнул'
+        }
+        case 'wait': {
+          await wait(args.seconds * 1000)
+          return `Ждал ${args.seconds} сек`
+        }
+        case 'think': {
+          return 'Думаю...'
+        }
+        case 'chop_tree': {
+          const logNames = ['oak_log','spruce_log','birch_log','jungle_log','dark_oak_log','acacia_log']
+          const TOOLS = { axe:['netherite_axe','diamond_axe','iron_axe','stone_axe','wooden_axe'] }
+          const axe = this.bot.inventory.items().filter(i => TOOLS.axe.includes(i.name)).sort((a,b) => TOOLS.axe.indexOf(a.name) - TOOLS.axe.indexOf(b.name))[0]
+          if (axe) {
+            try { await this.bot.equip(axe, 'hand') } catch(e) {}
+          }
+          let chopped = 0
+          for (let y = this.bot.entity.position.y + 4; y >= this.bot.entity.position.y - 1; y--) {
+            const baseX = Math.floor(this.bot.entity.position.x)
+            const baseZ = Math.floor(this.bot.entity.position.z)
+            for (let dx = -3; dx <= 3; dx++) {
+              for (let dz = -3; dz <= 3; dz++) {
+                const bp = new Vec3(baseX + dx, Math.floor(y), baseZ + dz)
+                const block = this.bot.blockAt(bp)
+                if (block && logNames.includes(block.name)) {
+                  const dist = this.bot.entity.position.distanceTo(bp)
+                  if (dist > 5) {
+                    const { goals } = require('mineflayer-pathfinder')
+                    try { await this.bot.pathfinder.goto(new goals.GoalNear(bp.x, bp.y, bp.z, 2)) } catch(e) {}
+                    await wait(300)
+                  }
+                  const blockNow = this.bot.blockAt(bp)
+                  if (blockNow && logNames.includes(blockNow.name)) {
+                    if (axe) try { await this.bot.equip(axe, 'hand') } catch(e) {}
+                    try {
+                      await this.bot.dig(blockNow)
+                      chopped++
+                      await wait(200)
+                      for (let dy = 1; dy <= 3; dy++) {
+                        const above = this.bot.blockAt(new Vec3(bp.x, bp.y + dy, bp.z))
+                        if (above && logNames.includes(above.name)) {
+                          try { await this.bot.dig(above); chopped++; await wait(200) } catch(e) {}
+                        }
+                      }
+                    } catch(e) {}
+                  }
+                }
+              }
+            }
+          }
+          return `Срубил ${chopped} брёвен`
+        }
+        case 'place_chest': {
+          const chest = this.bot.inventory.items().find(i => i.name === 'chest')
+          if (!chest) return 'Нет сундука в инвентаре'
+          const feet = this.bot.entity.position
+          const refs = [
+            { p: new Vec3(Math.floor(feet.x), Math.floor(feet.y) - 1, Math.floor(feet.z)), f: new Vec3(0, 1, 0) },
+            { p: new Vec3(Math.floor(feet.x) + 1, Math.floor(feet.y), Math.floor(feet.z)), f: new Vec3(-1, 0, 0) },
+            { p: new Vec3(Math.floor(feet.x) - 1, Math.floor(feet.y), Math.floor(feet.z)), f: new Vec3(1, 0, 0) },
+            { p: new Vec3(Math.floor(feet.x), Math.floor(feet.y), Math.floor(feet.z) + 1), f: new Vec3(0, 0, -1) },
+            { p: new Vec3(Math.floor(feet.x), Math.floor(feet.y), Math.floor(feet.z) - 1), f: new Vec3(0, 0, 1) },
+          ]
+          for (const r of refs) {
+            const refBlock = this.bot.blockAt(r.p)
+            if (refBlock && refBlock.name !== 'air' && refBlock.name !== 'cave_air') {
+              try {
+                await this.bot.equip(chest, 'hand')
+                await this.bot.placeBlock(refBlock, r.f)
+                await wait(300)
+                return 'Поставил сундук'
+              } catch(e) {}
+            }
+          }
+          return 'Нет места для сундука'
+        }
+        case 'kill_animal': {
+          const animals = ['cow','sheep','pig','chicken','rabbit','fox']
+          const target = Object.values(this.bot.entities).find(e =>
+            e && e.position && e.name && animals.includes(e.name.toLowerCase()) &&
+            e.position.distanceTo(this.bot.entity.position) < 12
+          )
+          if (!target) return 'Животные не найдены рядом (до 12 блоков)'
+          const sword = this.bot.inventory.items().find(i => i.name.includes('sword'))
+          if (sword) try { await this.bot.equip(sword, 'hand') } catch(e) {}
+          const { goals } = require('mineflayer-pathfinder')
+          try { await this.bot.pathfinder.goto(new goals.GoalNear(target.position.x, target.position.y, target.position.z, 2)) } catch(e) {}
+          await wait(200)
+          for (let i = 0; i < 6; i++) {
+            if (!target || !target.position) break
+            try { this.bot.attack(target) } catch(e) {}
+            await wait(300)
+          }
+          return `Убил ${target.name || 'животное'}`
+        }
+        case 'smelt': {
+          const furnace = this.bot.inventory.items().find(i => i.name === 'furnace')
+          if (!furnace) {
+            const cobble = this.bot.inventory.items().find(i => i.name === 'cobblestone')
+            if (!cobble) return 'Нет печи и нет булыжника для крафта'
+            this.bot.chat('/craft furnace')
+            await wait(2000)
+            const furnaceAfter = this.bot.inventory.items().find(i => i.name === 'furnace')
+            if (!furnaceAfter) return 'Не удалось скрафтить печь'
+          }
+          const furnaceBlock = this.bot.blockAt(this.bot.entity.position)
+          const nearFurnace = this.bot.findBlocks({ matching: b => b && b.name === 'furnace', maxDistance: 5, count: 1 })
+          if (nearFurnace.length === 0) {
+            const feet = this.bot.entity.position
+            const refs = [
+              { p: new Vec3(Math.floor(feet.x), Math.floor(feet.y) - 1, Math.floor(feet.z)), f: new Vec3(0, 1, 0) },
+              { p: new Vec3(Math.floor(feet.x) + 1, Math.floor(feet.y), Math.floor(feet.z)), f: new Vec3(-1, 0, 0) },
+            ]
+            const furnaceItem = this.bot.inventory.items().find(i => i.name === 'furnace')
+            if (furnaceItem) {
+              for (const r of refs) {
+                const refBlock = this.bot.blockAt(r.p)
+                if (refBlock && refBlock.name !== 'air') {
+                  try {
+                    await this.bot.equip(furnaceItem, 'hand')
+                    await this.bot.placeBlock(refBlock, r.f)
+                    await wait(300)
+                    break
+                  } catch(e) {}
+                }
+              }
+            }
+          }
+          const furnaceNear = this.bot.findBlocks({ matching: b => b && b.name === 'furnace', maxDistance: 5, count: 1 })
+          if (furnaceNear.length === 0) return 'Не удалось поставить печь'
+          const fb = this.bot.blockAt(furnaceNear[0])
+          await this.bot.lookAt(furnaceNear[0].offset(0.5, 0.5, 0.5))
+          await wait(200)
+          this.bot.activateBlock(fb)
+          await wait(500)
+          const win = this.bot.currentWindow
+          if (!win) return 'Не открылось окно печи'
+          const inputItem = this.bot.inventory.items().find(i => i.name === args.input)
+          if (!inputItem) return `Нет ${args.input} в инвентаре`
+          const fuelItem = this.bot.inventory.items().find(i => i.name === (args.fuel || 'coal') || i.name === 'charcoal')
+          if (!fuelItem) return `Нет топлива (${args.fuel || 'coal'})`
+          await this.bot.clickWindow(win.slots[0].slot, 0, 0)
+          await wait(100)
+          const inputSlot = this.bot.inventory.items().find(i => i.name === args.input)
+          if (inputSlot) {
+            await this.bot.clickWindow(inputSlot.slot, 0, 0)
+            await wait(100)
+            await this.bot.clickWindow(win.slots[0].slot, 0, 0)
+            await wait(100)
+          }
+          await this.bot.clickWindow(fuelItem.slot, 0, 0)
+          await wait(100)
+          await this.bot.clickWindow(win.slots[1].slot, 0, 0)
+          await wait(100)
+          try { this.bot.closeWindow(win) } catch(e) {}
+          await wait(200)
+          return `Запустил плавку ${args.input} с ${args.fuel || 'coal'}`
+        }
+        case 'build_house': {
+          const logNames = ['oak_log','spruce_log','birch_log','jungle_log','dark_oak_log','acacia_log']
+          const plankNames = ['oak_planks','spruce_planks','birch_planks','jungle_planks','dark_oak_planks','acacia_planks']
+          const hasLogs = this.bot.inventory.items().filter(i => logNames.includes(i.name)).reduce((s,i) => s + i.count, 0)
+          const hasPlanks = this.bot.inventory.items().filter(i => plankNames.includes(i.name)).reduce((s,i) => s + i.count, 0)
+          const totalWood = hasLogs + hasPlanks
+          if (totalWood < 40) return `Мало дерева (${totalWood}/40). Нужно срубить дерево.`
+          const hasChest = this.bot.inventory.items().find(i => i.name === 'chest')
+          const hasDoor = this.bot.inventory.items().find(i => i.name.includes('door'))
+          const bx = Math.floor(this.bot.entity.position.x)
+          const by = Math.floor(this.bot.entity.position.y)
+          const bz = Math.floor(this.bot.entity.position.z)
+          const wallBlock = hasPlanks > 0 ? plankNames.find(n => this.bot.inventory.items().find(i => i.name === n)) || 'oak_planks' : logNames.find(n => this.bot.inventory.items().find(i => i.name === n)) || 'oak_log'
+          const floorBlock = plankNames.find(n => this.bot.inventory.items().find(i => i.name === n)) || wallBlock
+          const roofBlock = logNames.find(n => this.bot.inventory.items().find(i => i.name === n)) || wallBlock
+          log('Строю дом 5x5...')
+          let placed = 0
+          const place = async (x, y, z, blockName) => {
+            const item = this.bot.inventory.items().find(i => i.name === blockName)
+            if (!item) return
+            const t = new Vec3(x, y, z)
+            const cur = this.bot.blockAt(t)
+            if (cur && cur.name !== 'air' && cur.name !== 'cave_air') return
+            const refs = [
+              { p: new Vec3(x, y-1, z), f: new Vec3(0,1,0) },
+              { p: new Vec3(x+1, y, z), f: new Vec3(-1,0,0) },
+              { p: new Vec3(x-1, y, z), f: new Vec3(1,0,0) },
+              { p: new Vec3(x, y, z+1), f: new Vec3(0,0,-1) },
+              { p: new Vec3(x, y, z-1), f: new Vec3(0,0,1) },
+            ]
+            for (const r of refs) {
+              const ref = this.bot.blockAt(r.p)
+              if (ref && ref.name !== 'air' && ref.name !== 'cave_air') {
+                try {
+                  await this.bot.equip(item, 'hand')
+                  await this.bot.placeBlock(ref, r.f)
+                  placed++
+                  await wait(120)
+                  return
+                } catch(e) {}
+              }
+            }
+          }
+          for (let x = 0; x < 5; x++) for (let z = 0; z < 5; z++) await place(bx+x, by-1, bz+z, floorBlock)
+          for (let y = 0; y < 3; y++) {
+            for (let x = 0; x < 5; x++) { if (x === 2 && y < 2) continue; await place(bx+x, by+y, bz, wallBlock) }
+            for (let x = 0; x < 5; x++) { if (x === 2 && y < 2) continue; await place(bx+x, by+y, bz+4, wallBlock) }
+            for (let z = 1; z < 4; z++) { await place(bx, by+y, bz+z, wallBlock); await place(bx+4, by+y, bz+z, wallBlock) }
+          }
+          for (let x = 0; x < 5; x++) for (let z = 0; z < 5; z++) await place(bx+x, by+3, bz+z, roofBlock)
+          if (hasDoor) {
+            const item = this.bot.inventory.items().find(i => i.name.includes('door'))
+            if (item) {
+              const doorPos = new Vec3(bx+2, by, bz)
+              const ref = this.bot.blockAt(new Vec3(bx+2, by-1, bz))
+              if (ref) {
+                try {
+                  await this.bot.equip(item, 'hand')
+                  await this.bot.placeBlock(ref, new Vec3(0,1,0))
+                  await wait(200)
+                } catch(e) {}
+              }
+            }
+          }
+          if (hasChest) {
+            const chestItem = this.bot.inventory.items().find(i => i.name === 'chest')
+            if (chestItem) {
+              const refs = [
+                { p: new Vec3(bx+1, by-1, bz+1), f: new Vec3(0,1,0) },
+                { p: new Vec3(bx+3, by-1, bz+1), f: new Vec3(0,1,0) },
+              ]
+              for (const r of refs) {
+                const ref = this.bot.blockAt(r.p)
+                if (ref && ref.name !== 'air') {
+                  try {
+                    await this.bot.equip(chestItem, 'hand')
+                    await this.bot.placeBlock(ref, r.f)
+                    await wait(200)
+                  } catch(e) {}
+                }
+              }
+            }
+          }
+          log(`Дом построен! Поставлено блоков: ${placed}`)
+          return `Построен дом 5x5 в ${bx} ${by} ${bz}. Стены: ${wallBlock}, пол: ${floorBlock}, крыша: ${roofBlock}. Поставлено блоков: ${placed}`
+        }
+        default:
+          return `Неизвестное действие: ${name}`
+      }
+    } catch(e) {
+      return `Ошибка: ${e.message}`
+    }
+  }
+
+  startAgent() {
+    if (!this.bot || !this.alive) return
+    this.behaviors.agent = true
+    this.agentMessages = [
+      { role: 'system', content: AGENT_SYSTEM_PROMPT },
+    ]
+    this.agentLog = []
+
+    const log = (msg) => {
+      const entry = `[${new Date().toLocaleTimeString()}] ${msg}`
+      this.agentLog.push(entry)
+      if (this.agentLog.length > 50) this.agentLog.shift()
+      console.log(`[${this.username}] [Agent] ${msg}`)
+    }
+
+    const runAgentLoop = async () => {
+      if (!this.behaviors.agent || !this.bot || !this.alive) return
+
+      const state = this.getGameState()
+      if (!state) { log('Нет состояния, жду...'); return }
+
+      const stateMsg = `[${state.position.x},${state.position.y},${state.position.z}] HP:${state.health} F:${state.food} ${state.isNight?'НОЧЬ':'ДЕНЬ'} Экип:${state.equipped}
+Инв:${Object.entries(state.inventory).map(([k,v])=>k+':'+v).join(', ')}
+Мобы:${state.nearbyEntities.map(e=>e.name+'['+e.type+']('+e.distance+'м)').join(', ')}
+Блоки:${state.nearbyBlocks.slice(0,10).map(b=>b.name).join(', ')}
+
+Что делать?`
+
+      this.agentMessages.push({ role: 'user', content: stateMsg })
+
+      if (this.agentMessages.length > 12) {
+        this.agentMessages = [this.agentMessages[0], ...this.agentMessages.slice(-8)]
+      }
+
+      log('Запрашиваю решение ИИ...')
+      const response = await askAIWithTools(this.agentMessages, AI_AGENT_TOOLS)
+
+      if (!response) { log('Нет ответа от ИИ'); setTimeout(runAgentLoop, 5000); return }
+
+      if (response.content) {
+        log(`ИИ: ${response.content}`)
+      }
+
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        this.agentMessages.push({ role: 'assistant', content: response.content || '', tool_calls: response.tool_calls })
+
+        for (const toolCall of response.tool_calls) {
+          if (!this.behaviors.agent || !this.bot || !this.alive) break
+          const fnName = toolCall.function.name
+          let fnArgs = {}
+          try { fnArgs = JSON.parse(toolCall.function.arguments) } catch(e) {}
+
+          log(`⚡ ${fnName}(${JSON.stringify(fnArgs).substring(0, 80)})`)
+          const result = await this.executeAgentTool(fnName, fnArgs)
+          log(`✓ ${result}`)
+
+          this.agentMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: result,
+          })
+
+          await new Promise(r => setTimeout(r, 200))
+        }
+      } else {
+        this.agentMessages.push({ role: 'assistant', content: response.content || '...' })
+      }
+
+      if (this.behaviors.agent && this.bot && this.alive) {
+        const delay = 1000 + Math.random() * 1500
+        setTimeout(runAgentLoop, delay)
+      }
+    }
+
+    log('AI Agent запущен! ИИ начинает автономное управление.')
+    runAgentLoop()
+  }
+
+  stopAgent() {
+    this.behaviors.agent = false
+    this.agentMessages = []
+    if (this.bot) {
+      this.bot.setControlState('forward', false)
+      this.bot.setControlState('back', false)
+      this.bot.setControlState('left', false)
+      this.bot.setControlState('right', false)
+      this.bot.setControlState('sprint', false)
+      this.bot.setControlState('jump', false)
+      this.bot.setControlState('sneak', false)
+      try { this.bot.pathfinder.setGoal(null) } catch(e) {}
+    }
+  }
+
   destroy() {
     this.stopBehavior()
     if (this.bot) {
@@ -1564,6 +2501,7 @@ class Bot {
       stats: this.stats,
       recentMessages: this.serverMessages.slice(-20),
       developLog: (this.developLog || []).slice(-15),
+      agentLog: (this.agentLog || []).slice(-15),
     }
   }
 }

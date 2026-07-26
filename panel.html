@@ -249,6 +249,8 @@ function renderBots(data) {
       html += '<button class="btn small ' + (execOn ? 'orange' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="exec" data-enable="' + (!execOn) + '">' + (execOn ? 'Команды ВКЛ' : 'Команды ВЫКЛ') + '</button>'
       html += '<button class="btn small ' + (pvpOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="pvp" data-enable="' + (!pvpOn) + '">' + (pvpOn ? 'PvP ВКЛ' : 'PvP ВЫКЛ') + '</button>'
       html += '<button class="btn small ' + (devOn ? 'red' : 'blue') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="develop" data-enable="' + (!devOn) + '">' + (devOn ? 'Развитие ВКЛ (' + (b.developPhase || '') + ')' : 'Начать развитие') + '</button>'
+      var agentOn = b.behaviors && b.behaviors.agent
+      html += '<button class="btn small ' + (agentOn ? 'red' : 'blue') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="agent" data-enable="' + (!agentOn) + '">' + (agentOn ? 'AI Agent ВКЛ' : 'AI Agent ВЫКЛ') + '</button>'
       html += '</div>'
     }
 
@@ -275,6 +277,15 @@ function renderBots(data) {
       html += '<div style="color:#e94560;font-weight:700;padding:4px 0">Развитие:</div>'
       for (var j = 0; j < b.developLog.length; j++) {
         html += '<div style="color:#f39c12">' + escHtml(b.developLog[j]) + '</div>'
+      }
+      html += '</div>'
+    }
+
+    if (b.agentLog && b.agentLog.length > 0) {
+      html += '<div class="bot-console" style="border-top:1px solid #3498db">'
+      html += '<div style="color:#3498db;font-weight:700;padding:4px 0">AI Agent:</div>'
+      for (var j = 0; j < b.agentLog.length; j++) {
+        html += '<div style="color:#2ecc71">' + escHtml(b.agentLog[j]) + '</div>'
       }
       html += '</div>'
     }

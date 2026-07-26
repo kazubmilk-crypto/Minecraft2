@@ -384,6 +384,9 @@ const server = http.createServer((req, res) => {
         } else if (data.action === 'develop') {
           if (data.enable) bot.startDeveloping()
           else bot.stopDeveloping()
+        } else if (data.action === 'agent') {
+          if (data.enable) bot.startAgent()
+          else bot.stopAgent()
         }
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true }))
