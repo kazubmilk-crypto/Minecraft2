@@ -251,6 +251,12 @@ function renderBots(data) {
       html += '<button class="btn small ' + (devOn ? 'red' : 'blue') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="develop" data-enable="' + (!devOn) + '">' + (devOn ? 'Развитие ВКЛ (' + (b.developPhase || '') + ')' : 'Начать развитие') + '</button>'
       var agentOn = b.behaviors && b.behaviors.agent
       html += '<button class="btn small ' + (agentOn ? 'red' : 'blue') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="agent" data-enable="' + (!agentOn) + '">' + (agentOn ? 'AI Agent ВКЛ' : 'AI Agent ВЫКЛ') + '</button>'
+      var bot2On = b.behaviors && b.behaviors.bot2Chat
+      html += '<button class="btn small ' + (bot2On ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="bot2Chat" data-enable="' + (!bot2On) + '">' + (bot2On ? 'Bot2 Чат ВКЛ' : 'Bot2 Чат ВЫКЛ') + '</button>'
+      var warpOn = b.behaviors && b.behaviors.warpVisit
+      html += '<button class="btn small ' + (warpOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="warpVisit" data-enable="' + (!warpOn) + '">' + (warpOn ? 'Варпы ВКЛ' : 'Варпы ВЫКЛ') + '</button>'
+      var npcHitOn = b.behaviors && b.behaviors.npcHit
+      html += '<button class="btn small ' + (npcHitOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="npcHit" data-enable="' + (!npcHitOn) + '">' + (npcHitOn ? 'Бить NPC ВКЛ' : 'Бить NPC ВЫКЛ') + '</button>'
       html += '</div>'
     }
 

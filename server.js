@@ -7,6 +7,7 @@ const { generateUsername } = require('./usernames.js')
 const PORT = process.env.PORT || 3000
 const bots = {}
 const rotation = { active: false, interval: null, nextSpawn: 0 }
+let globalBotIndex = 0
 
 const ENGLISH_NAMES = [
   'DiamondSteve','CreeperHunter','EnderDragon','WolfMaster','NetherKing',
@@ -62,12 +63,15 @@ function stopRotation() {
 function addBot(username) {
   if (bots[username]) return false
   try {
+    globalBotIndex++
     const bot = new Bot(username, {
     host: 'srv12.vrhosting.su',
     port: 25263,
     version: '1.16.5',
     password: 'zons123123',
     })
+    bot.startIndex = globalBotIndex
+    console.log(`[Bot] ${username} создан (индекс: ${globalBotIndex})`)
     bot.create()
     bots[username] = bot
     return true
@@ -87,6 +91,10 @@ function removeBot(username) {
 function startBot(username) {
   if (!bots[username]) return false
   if (bots[username].alive) return false
+  if (!bots[username].startIndex) {
+    globalBotIndex++
+    bots[username].startIndex = globalBotIndex
+  }
   try { bots[username].bot.quit() } catch(e) {}
   bots[username].bot = null
   bots[username].create()
@@ -387,6 +395,15 @@ const server = http.createServer((req, res) => {
         } else if (data.action === 'agent') {
           if (data.enable) bot.startAgent()
           else bot.stopAgent()
+        } else if (data.action === 'bot2Chat') {
+          if (data.enable) bot.startBot2Chat()
+          else bot.stopBot2Chat()
+        } else if (data.action === 'warpVisit') {
+          if (data.enable) bot.visitRandomWarp()
+          else bot.stopWarpVisit()
+        } else if (data.action === 'npcHit') {
+          if (data.enable) bot.startNpcHit()
+          else bot.stopNpcHit()
         }
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true }))
