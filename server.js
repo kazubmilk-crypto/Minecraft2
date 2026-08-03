@@ -66,7 +66,7 @@ function addBot(username) {
     globalBotIndex++
     const bot = new Bot(username, {
     host: 'srv12.vrhosting.su',
-    port: 25263,
+    port: 25183,
     version: '1.16.5',
     password: 'zons123123',
     })
