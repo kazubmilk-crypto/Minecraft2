@@ -258,6 +258,8 @@ function renderBots(data) {
       html += '<button class="btn small ' + (warpOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="warpVisit" data-enable="' + (!warpOn) + '">' + (warpOn ? 'Варпы ВКЛ' : 'Варпы ВЫКЛ') + '</button>'
       var npcHitOn = b.behaviors && b.behaviors.npcHit
       html += '<button class="btn small ' + (npcHitOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="npcHit" data-enable="' + (!npcHitOn) + '">' + (npcHitOn ? 'Бить NPC ВКЛ' : 'Бить NPC ВЫКЛ') + '</button>'
+      var rndOn = b.behaviors && b.behaviors.randomizeServers
+      html += '<button class="btn small ' + (rndOn ? 'red' : 'green') + '" data-action="behavior" data-user="' + escHtml(name) + '" data-behavior="randomizeServers" data-enable="' + (!rndOn) + '">' + (rndOn ? 'Рандом ВКЛ' : 'Рандом ВЫКЛ') + '</button>'
       html += '</div>'
     }
 
