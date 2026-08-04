@@ -1430,6 +1430,7 @@ class Bot {
     this.behaviors.warpVisit = false
     this.behaviors.pvp = false
     this.behaviors.npcHit = false
+    this.behaviors.randomizeServers = false
     this.developPhase = null
     this.stopChaoticMovement()
     this.clearPvpTimer()
@@ -3255,6 +3256,28 @@ class Bot {
 
   stopWarpVisit() {
     this.behaviors.warpVisit = false
+  }
+
+  // ===== РАНДОМИЗАЦИЯ СЕРВЕРОВ =====
+  startRandomizeServers() {
+    if (!this.bot || !this.alive) return
+    this.behaviors.randomizeServers = true
+    this.currentServer = this.currentServer || 'grief-1'
+    const servers = ['grief-1', 'anarchy']
+
+    const switchServer = () => {
+      if (!this.behaviors.randomizeServers || !this.bot || !this.alive) return
+      const next = servers.filter(s => s !== this.currentServer)[0]
+      this.command(`server ${next}`)
+      this.currentServer = next
+      console.log(`[Randomize] ${this.username} → ${next}`)
+      setTimeout(switchServer, 90000 + Math.random() * 30000)
+    }
+    setTimeout(switchServer, 90000 + Math.random() * 30000)
+  }
+
+  stopRandomizeServers() {
+    this.behaviors.randomizeServers = false
   }
 
   // ===== BOT3: ПРОВЕРКА NPC =====

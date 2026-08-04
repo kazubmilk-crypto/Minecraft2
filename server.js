@@ -4,7 +4,7 @@ const path = require('path')
 const Bot = require('./bot.js')
 const { generateUsername } = require('./usernames.js')
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 25593
 const bots = {}
 const rotation = { active: false, interval: null, nextSpawn: 0 }
 let globalBotIndex = 0
@@ -404,6 +404,9 @@ const server = http.createServer((req, res) => {
         } else if (data.action === 'npcHit') {
           if (data.enable) bot.startNpcHit()
           else bot.stopNpcHit()
+        } else if (data.action === 'randomizeServers') {
+          if (data.enable) bot.startRandomizeServers()
+          else bot.stopRandomizeServers()
         }
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true }))
@@ -412,6 +415,12 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ ok: false, error: e.message }))
       }
     })
+    return
+  }
+
+  if (url.pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' })
+    res.end('OK')
     return
   }
 
